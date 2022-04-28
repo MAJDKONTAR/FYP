@@ -1,4 +1,5 @@
 import math
+import time
 
 import cv2
 import numpy as np
@@ -37,13 +38,6 @@ class FaceMeshDetector:
                                             self.draw_spec)
             if self.results.multi_face_landmarks[0].landmark:
                 self.face = self.results.multi_face_landmarks[0].landmark
-            # for id, lm in enumerate(self.results.multi_face_landmarks[0].landmark):
-            #     # print(lm)
-            #     ih, iw, ic = frame.shape
-            #     x, y = int(lm.x * iw), int(lm.y * ih)
-            #     # cv2.putText(frame, str(id), (x, y), cv2.FONT_HERSHEY_PLAIN, 1, (0, 0, 255), 1)
-            #     # print(x, y)
-            #     self.face.append([x, y])
 
     def get_head_position(self, thresh):
         face_3d = []
@@ -58,6 +52,7 @@ class FaceMeshDetector:
                 x, y = int(lm.x * self.iw), int(lm.y * self.ih)
                 face_2d.append([x, y])
                 face_3d.append([x, y, lm.z])
+                cv2.circle(self.frame, (x, y), 2, (0, 255, 0), 2)
 
         if len(face_2d) > 0:
             face_2d = np.array(face_2d, dtype=np.float64)
@@ -71,7 +66,7 @@ class FaceMeshDetector:
 
             dist_matrix = np.zeros((4, 1), dtype=np.float64)
 
-            success, rot_vec, trans_vec = cv2.solvePnP(face_3d, face_2d, cam_matrix, dist_matrix)
+            _, rot_vec, trans_vec = cv2.solvePnP(face_3d, face_2d, cam_matrix, dist_matrix)
 
             rot_matrix = cv2.Rodrigues(rot_vec)[0]
             angles = cv2.RQDecomp3x3(rot_matrix)[0]
@@ -79,7 +74,7 @@ class FaceMeshDetector:
             x = angles[0] * 360
             y = angles[1] * 360
 
-            if x < 0:
+            if x < -thresh:
                 action = 'forward'
                 if y < -thresh:
                     direction = 'right'
@@ -116,100 +111,37 @@ class FaceMeshDetector:
         :param frame:
         :return:
         """
-        thresh = 4.3
-        open = thresh - 0.1
-        rh_right = self.face[33]
-        rh_left = self.face[133]
-        rv_top = self.face[159]
-        rv_bottom = self.face[145]
-        # cv2.line(frame, rh_right, rh_left, (0, 255, 0), 1)
-        # cv2.line(frame, rv_top, rv_bottom, (255, 255, 255), 1)
-        lh_right = self.face[263]
-        lh_left = self.face[362]
-        lv_top = self.face[386]
-        lv_bottom = self.face[374]
-        # cv2.line(frame, lh_right, lh_left, (0, 255, 0), 1)
-        # cv2.line(frame, lv_top, lv_bottom, (255, 255, 255), 1)
-        rh_distance = euclidean_distance(rh_right, rh_left)
-        rv_distance = euclidean_distance(rv_top, rv_bottom)
-        lv_distance = euclidean_distance(lv_top, lv_bottom)
-        lh_distance = euclidean_distance(lh_right, lh_left)
-        re_ratio = rh_distance / rv_distance
-        le_ratio = lh_distance / lv_distance
-        cv2.putText(frame, f'Blinks: {int(self.blink)}', (20, 70), cv2.FONT_HERSHEY_PLAIN,
-                    3, (0, 255, 0), 3)
-        if re_ratio > thresh and le_ratio > thresh and not self.blinked:
-            self.blinked = True
-            self.blink += 1
-        elif re_ratio > thresh and le_ratio < open:
-            self.blinked = False
-            cv2.putText(frame, 'Right Wink', (20, 110), cv2.FONT_HERSHEY_PLAIN,
-                        3, (0, 255, 0), 3)
-        elif le_ratio > thresh and re_ratio < open:
-            self.blinked = False
-            cv2.putText(frame, 'Left Wink', (20, 110), cv2.FONT_HERSHEY_PLAIN,
-                        3, (0, 255, 0), 3)
-        else:
-            self.blinked = False
-        # print(re_ratio, le_ratio)
+        if len(self.face) > 0:
+            thresh = 3.7
+            open = thresh - 0.3
+            rh_right = (self.face[33].x, self.face[33].y)
+            rh_left = (self.face[133].x, self.face[133].y)
+            rv_top = (self.face[159].x, self.face[159].y)
+            rv_bottom = (self.face[145].x, self.face[145].y)
+            lh_right = (self.face[263].x, self.face[263].y)
+            lh_left = (self.face[362].x, self.face[362].y)
+            lv_top = (self.face[386].x, self.face[386].y)
+            lv_bottom = (self.face[374].x, self.face[374].y)
+            rh_distance = euclidean_distance(rh_right, rh_left)
+            rv_distance = euclidean_distance(rv_top, rv_bottom)
+            lv_distance = euclidean_distance(lv_top, lv_bottom)
+            lh_distance = euclidean_distance(lh_right, lh_left)
+            re_ratio = rh_distance / rv_distance
+            le_ratio = lh_distance / lv_distance
+
+            if re_ratio > thresh and le_ratio > thresh:
+                if not self.blinked:
+                    cv2.putText(frame, 'Blink', (20, 70), cv2.FONT_HERSHEY_PLAIN,
+                                3, (0, 255, 0), 3)
+                    self.blinked = True
+                    self.blink += 1
+            else:
+                self.blinked = False
+            # print(re_ratio, le_ratio)
         return self.blink
 
-    def get_eyes_position(self, frame, thresh):
-        right_eye = frame.copy()
-        left_eye = frame.copy()
-        right_eye = right_eye[int(self.face[30].y * self.ih):int(self.face[26].y * self.ih),
-                    int(self.face[156].x * self.iw):int(self.face[188].x * self.iw)]
-        left_eye = left_eye[int(self.face[286].y * self.ih):int(self.face[254].y * self.ih),
-                   int(self.face[399].x * self.iw):int(self.face[265].x * self.iw)]
-        right_eye = cv2.resize(right_eye, (int(right_eye.shape[1] * 4), int(right_eye.shape[0] * 4)), interpolation=cv2.INTER_LINEAR)
-        left_eye = cv2.resize(left_eye, (int(left_eye.shape[1] * 4), int(left_eye.shape[0] * 4)), interpolation=cv2.INTER_LINEAR)
-        right_eye_th = cv2.cvtColor(right_eye, cv2.COLOR_RGB2GRAY)
-        left_eye_th = cv2.cvtColor(left_eye, cv2.COLOR_RGB2GRAY)
-        cv2.line(right_eye, (int(right_eye.shape[1] / 2), 0), (int(right_eye.shape[1] / 2), right_eye.shape[0]), (0, 0, 0), 1)
-        cv2.line(left_eye, (int(left_eye.shape[1] / 2), 0), (int(left_eye.shape[1] / 2), left_eye.shape[0]), (0, 0, 0), 1)
-        cv2.line(right_eye, (0, int(right_eye.shape[0] / 2)), (right_eye.shape[1], int(right_eye.shape[0] / 2)), (0, 0, 0), 1)
-        cv2.line(left_eye, (0, int(left_eye.shape[0] / 2)), (left_eye.shape[1], int(left_eye.shape[0] / 2)), (0, 0, 0), 1)
-        right_eye_th = cv2.threshold(right_eye_th, thresh, 255, cv2.THRESH_BINARY_INV)[1]
-        left_eye_th = cv2.threshold(left_eye_th, thresh, 255, cv2.THRESH_BINARY_INV)[1]
-        right_eye_opening = cv2.morphologyEx(right_eye_th, cv2.MORPH_OPEN, (5, 5))
-        left_eye_opening = cv2.morphologyEx(left_eye_th, cv2.MORPH_OPEN, (5, 5))
-        right_eye_dilation = cv2.erode(right_eye_opening, (5, 5), iterations=5)
-        left_eye_dilation = cv2.erode(left_eye_opening, (5, 5), iterations=5)
-        l_out = np.zeros((70, 170, 3))
-        r_out = np.zeros((70, 170, 3))
-        m = cv2.moments(right_eye_dilation)
-        r_x = int(m["m10"] / m["m00"])
-        m = cv2.moments(left_eye_dilation)
-        l_x = int(m["m10"] / m["m00"])
-        print('Right Eye:')
-        if abs(r_x - int(right_eye.shape[1] / 2)) < 10:
-            cv2.putText(r_out, 'Center', (0, int(r_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-            print('\tCenter')
-        else:
-            if r_x > int(right_eye.shape[1] / 2):
-                cv2.putText(r_out, 'Left', (0, int(r_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-                print('\tLeft')
-            else:
-                cv2.putText(r_out, 'Right', (0, int(r_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-                print("\tRight")
-        print('Left Eye:')
-        if abs(l_x - int(left_eye.shape[1] / 2)) < 10:
-            cv2.putText(l_out, 'Center', (0, int(l_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-            print('\tCenter')
-        else:
-            if l_x > int(left_eye.shape[1] / 2):
-                cv2.putText(l_out, 'Left', (0, int(l_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-                print('\tLeft')
-            else:
-                cv2.putText(l_out, 'Right', (0, int(l_out.shape[0] / 2)), cv2.FONT_HERSHEY_PLAIN, 3, (255, 0, 0))
-                print("\tRight")
-        cv2.imshow('Right Eye', right_eye)
-        cv2.imshow('Right Eye Detection', right_eye_dilation)
-        cv2.imshow('Right Eye Output', r_out)
-        cv2.imshow('Left Eye', left_eye)
-        cv2.imshow('Left Eye Detection', left_eye_dilation)
-        cv2.imshow('Left Eye Output', l_out)
-        return right_eye, r_out, right_eye_dilation, left_eye, l_out, left_eye_dilation
+    def reset_blink(self):
+        self.blink = 0
 
 
 def euclidean_distance(rh_right, rh_left):
@@ -224,3 +156,32 @@ def euclidean_distance(rh_right, rh_left):
     distance = math.sqrt((x1 - x) ** 2 + (y1 - y) ** 2)
     return distance
 
+
+if __name__ == '__main__':
+    cap = cv2.VideoCapture(0)
+    cap.set(5, 60)
+    detector = FaceMeshDetector()
+    start_time = time.time()
+    is_motion = False
+    while True:
+        end_time = time.time()
+        success, frame = cap.read()
+        detector.find_face_mesh(frame, draw=False)
+        blink = detector.blink_detector(frame)
+        if is_motion:
+            detector.get_head_position(5)
+        if end_time - start_time >= 1:
+            print('Timer reset')
+            start_time = time.time()
+            detector.reset_blink()
+        if blink >= 2 and end_time - start_time < 1:
+            if is_motion:
+                print('Motion Stopped')
+                is_motion = False
+            else:
+                print('Motion Started')
+                is_motion = True
+            detector.reset_blink()
+            start_time = time.time()
+        cv2.imshow('Frame', frame)
+        cv2.waitKey(1)
