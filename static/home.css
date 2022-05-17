@@ -1,0 +1,107 @@
+h1 {
+    padding-left: 9%;
+
+}
+
+h2 {
+    text-align: center;
+}
+
+nav {
+    display: flex;
+    background-color: brown;
+    justify-content: flex-start;
+    margin: auto;
+    padding: 10px;
+}
+
+button {
+    margin: 10px;
+    font-size: larger;
+    padding: 10px;
+    border-radius: 10px;
+}
+
+.component {
+    display: flex;
+    margin: auto;
+    justify-content: center;
+}
+
+.component div {
+    border-style: ridge;
+    border-color: beige;
+    border-width: 5px;
+    border-radius: 20px;
+    background-color: beige;
+    margin: 20px;
+}
+
+.vitals div {
+    display: grid;
+    margin: auto;
+    grid-template-columns: 0.3fr 0.3fr 0.9fr;
+    grid-template-rows: 0.5fr 0.5fr;
+    text-align: center;
+    justify-items: center;
+    align-items: center;
+    grid-gap: 20px;
+}
+
+
+.vitals img {
+    display: block;
+    margin: auto;
+    height: 50px;
+    width: auto;
+    border-style: none;
+    padding-left: 5px;
+}
+
+video {
+    display: block;
+    margin: auto auto 10px;
+    width: 500px;
+    border-style: ridge;
+    border-radius: 10px;
+}
+
+.history div {
+    border: none;
+
+}
+
+th {
+    background-color: brown;
+    border-left: none;
+    font-size: larger;
+    padding: 10px 10px;
+    text-align: center;
+}
+tr{
+    font-size: large;
+}
+
+td:first-child, th:first-child {
+    border-left: none;
+}
+
+td {
+    padding: 2px 10px;
+    text-align: center;
+    border-top: 1px solid #8b8b8b;
+    border-left: 1px solid #8b8b8b;
+}
+
+tr:nth-child(even) {
+    background-color: wheat;
+}
+
+tr:nth-child(odd) {
+    background-color: whitesmoke;
+}
+
+tr:hover {
+    background-color: salmon;
+}
+

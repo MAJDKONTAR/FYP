@@ -104,7 +104,7 @@ class FaceMeshDetector:
             p1 = (int(nose_2d[0]), int(nose_2d[1]))
             p2 = (int(nose_2d[0] + y * 10), int(nose_2d[1] - x * 10))
             cv2.line(self.frame, p1, p2, (255, 0, 0), 3)
-        return action, direction
+        return self.frame, {'action': action, 'direction': direction}
 
     def blink_detector(self, frame):
         """
